@@ -1,7 +1,8 @@
 #include <Arduino.h>
 #include <RF24.h>
 
-// 1 - FAZER - implementar checksum
+// 1 - FEITO - implementar checksum
+// 1,5 - FAZER - enquanto nao receber resposta, enviar de novo
 // 2 - FAZER - particao de mensagem
 // 3 - FAZER - cliente servidor
 
@@ -42,15 +43,15 @@
 #define TAMANHO_DA_LISTA_DE_PACOTES 10
 
 typedef struct { 
-  int endereco_destino;
-  int endereco_origem;
-  int checksum;
-  int id_mensagem;
-  // int numero_da_mensagem_atual; //soh se precisar usar
-  // int numero_de_mensagens;      //soh se precisar usar
+  uint8_t endereco_destino;
+  uint8_t endereco_origem;
+  uint8_t checksum;
+  uint8_t id_mensagem;
+  // uint8_t numero_da_mensagem_atual; //soh se precisar usar
+  // uint8_t numero_de_mensagens;      //soh se precisar usar
   char ack;
-  int tamanho_payload;
-  char payload[64];
+  uint8_t tamanho_payload;
+  char payload[26];
 } Pacote;
 
 typedef struct{
@@ -165,7 +166,7 @@ void loop(){
     payload[--i] = '\0'; //uma posicao pra tras para ignora o enter "\n" da serial
 
     radio.stopListening();
-    Pacote pacote = criarPacote(ENDERECO_DESTINO_1, ENDERECO_ORIGEM, cont_id++, 's', payload, 64);
+    Pacote pacote = criarPacote(ENDERECO_DESTINO_1, ENDERECO_ORIGEM, cont_id++, 's', payload, 26);
     while(true){
       if(radio.write(&pacote, sizeof(Pacote))){
         PacoteEnviado pacote_enviado = criarPacoteEnviado(pacote, micros());
