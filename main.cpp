@@ -2,7 +2,7 @@
 #include <RF24.h>
 
 // 1 - FEITO - implementar checksum
-// 1,5 - FAZER - enquanto nao receber resposta, enviar de novo
+// 1,5 - FAZER - Feito
 // 2 - FAZER - particao de mensagem
 // 3 - FAZER - cliente servidor
 
@@ -40,7 +40,7 @@
 
 
 
-#define TAMANHO_DA_LISTA_DE_PACOTES 10
+#define TAMANHO_DA_LISTA_DE_PACOTES 30
 
 typedef struct { 
   uint8_t endereco_destino;
@@ -154,6 +154,13 @@ void setup(){
 }
 
 void loop(){
+
+  for (int i = 0; i < TAMANHO_DA_LISTA_DE_PACOTES; i++){//rotina pra reenvio de pacotes não respondidos
+     if( lista_de_pacotes_enviados[i].respondido != true && ((micros()-lista_de_pacotes_enviados[i].hora_do_recebimento)> 2000000) ){
+        radio.write(&lista_de_pacotes_enviados[i].pacote, sizeof(lista_de_pacotes_enviados[i].pacote));
+      }
+   }
+  
   //enviar
   if (Serial.available()){
     String entrada_via_serial = Serial.readString();
