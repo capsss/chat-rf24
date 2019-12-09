@@ -8,6 +8,9 @@
 #define ENDERECO_BROADCAST 999
 
 #if MINHA_PLACA == 39
+char buffer01[128];
+char buffer06[128];
+char buffer13[128];
 #define ENDERECO_ORIGEM MINHA_PLACA
 #define ENDERECO_DESTINO_1 1
 #define ENDERECO_DESTINO_2 1
@@ -16,26 +19,28 @@
 #endif
 
 #if MINHA_PLACA == 6
+char buffer39[128];
 #define ENDERECO_ORIGEM MINHA_PLACA
 #define ENDERECO_DESTINO_1 39
 #define FUNCIONALIDADE 1
 #endif
 
 #if MINHA_PLACA == 1
+char buffer39[128];
 #define ENDERECO_ORIGEM MINHA_PLACA
 #define ENDERECO_DESTINO_1 39
 #define FUNCIONALIDADE 1
 #endif
 
 #if MINHA_PLACA == 13
+char buffer39[128];
 #define ENDERECO_ORIGEM MINHA_PLACA
 #define ENDERECO_DESTINO_1 39
 #define FUNCIONALIDADE 1
 #endif
 
 #define TAMANHO_DA_LISTA_DE_PACOTES 20
-
-
+  
 
 typedef struct{
   uint8_t endereco_destino;
@@ -210,8 +215,8 @@ void loop() {
       endereco_destino = atoi(lixo);
     #endif
 
-    char payload[64];
-    for(i; i<64; i++){
+    char payload[128];
+    for(i; i<128; i++){
       #if MINHA_PLACA == 39
         payload[i-3] = entrada_via_serial[i];
       #endif
@@ -221,29 +226,65 @@ void loop() {
     }
     payload[--i] = '\0';
 
+    Serial.print("payload: ");
+    Serial.println(payload);
+
+    if(strlen(payload) > 26) {
+      int tamanho = strlen(payload);
+      int quantas_mensagens = (int)ceil(tamanho/24.0);
+      for(int i=0; i<quantas_mensagens; i++){
+        int posicao_inicial = i*24;
+        int posicao_final = posicao_inicial + 24;
+
+        char temporario_payload[32];
+        int aux = 0;
+        int j=0;
+        for(j=posicao_inicial; j<posicao_final; j++){
+            temporario_payload[aux++] = payload[j];
+        }
+        temporario_payload[aux] = '\0';
+        Serial.print("payload temporario: ");
+        Serial.println(temporario_payload);
+
+        radio.stopListening();
+
+        Pacote pacote = criarPacote(endereco_destino, ENDERECO_ORIGEM, cont_id++, 's', temporario_payload, 26);
+        if(!radio.write(&pacote, sizeof(Pacote))){
+          Serial.println("pacote nao enviado");
+        }
+        delay(1000);
+
+        // Serial.println("LOOP: enviou");
+
+        PacoteEnviado pacote_enviado = criarPacoteEnviado(pacote, micros());
+        adicionarPacoteNaLista(pacote_enviado);
+      }
+    } else {
+
     radio.stopListening();
 
-    #if MINHA_PLACA == 39
-    Pacote pacote = criarPacote(endereco_destino, ENDERECO_ORIGEM, cont_id++, 's', payload, 26);
-    #endif
+      #if MINHA_PLACA == 39
+      Pacote pacote = criarPacote(endereco_destino, ENDERECO_ORIGEM, cont_id++, 's', payload, 26);
+      #endif
 
-    #if MINHA_PLACA != 39
-    Pacote pacote = criarPacote(ENDERECO_DESTINO_1, ENDERECO_ORIGEM, cont_id++, 's', payload, 26);
-    #endif
+      #if MINHA_PLACA != 39
+      Pacote pacote = criarPacote(ENDERECO_DESTINO_1, ENDERECO_ORIGEM, cont_id++, 's', payload, 26);
+      #endif
 
-    // Serial.print("LOOP: pronto para enviar: ");
-    // Serial.println(pacote.payload);
-    // Serial.print("LOOP: id do pacote: ");
-    // Serial.println(pacote.id_mensagem);
+      // Serial.print("LOOP: pronto para enviar: ");
+      // Serial.println(pacote.payload);
+      // Serial.print("LOOP: id do pacote: ");
+      // Serial.println(pacote.id_mensagem);
 
-    if(!radio.write(&pacote, sizeof(Pacote))){
-      Serial.println("pacote nao enviado");
+      if(!radio.write(&pacote, sizeof(Pacote))){
+        Serial.println("pacote nao enviado");
+      }
+
+      // Serial.println("LOOP: enviou");
+
+      PacoteEnviado pacote_enviado = criarPacoteEnviado(pacote,micros());
+      adicionarPacoteNaLista(pacote_enviado);
     }
-
-    // Serial.println("LOOP: enviou");
-
-    PacoteEnviado pacote_enviado = criarPacoteEnviado(pacote,micros());
-    adicionarPacoteNaLista(pacote_enviado);
 
     radio.startListening();
   }
@@ -267,6 +308,17 @@ void loop() {
           Pacote pacote_resposta = criarPacote(pacote2.endereco_origem, pacote2.endereco_destino, pacote2.id_mensagem, 'r', payload_lixo, 0);
           radio.write(&pacote_resposta, sizeof(Pacote));   
           radio.startListening();
+
+          // if(pacote2.endereco_origem == 1){
+          //   for(int i)
+          // }
+
+          if((pacote2.payload[strlen(pacote2.payload) - 2]) == '\n'){
+            if(pacote2.endereco_origem == 1){
+              Serial.println(buffer01);
+            }
+            
+          }
 
           Serial.print("RECEBIDO: ");
           Serial.print(pacote2.payload);
