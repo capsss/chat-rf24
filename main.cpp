@@ -9,7 +9,7 @@
 
 #if MINHA_PLACA == 39
 #define ENDERECO_ORIGEM MINHA_PLACA
-#define ENDERECO_DESTINO_1 13
+#define ENDERECO_DESTINO_1 1
 #define ENDERECO_DESTINO_2 1
 #define ENDERECO_DESTINO_3 6
 #define FUNCIONALIDADE 0
@@ -33,7 +33,7 @@
 #define FUNCIONALIDADE 1
 #endif
 
-#define TAMANHO_DA_LISTA_DE_PACOTES 10
+#define TAMANHO_DA_LISTA_DE_PACOTES 20
 
 
 
@@ -120,12 +120,23 @@ void removerPacoteDaLista(Pacote pacote, unsigned long hora_do_recebimento){
           Serial.print("confirmacao em: ");
           Serial.print(lista_de_pacotes_enviados[i].hora_do_recebimento - lista_de_pacotes_enviados[i].hora_do_envio);
           Serial.println(" microsegundos");
+          posicao_na_lista_de_pacotes_enviados--;
         }
       }
     }
   }
 }
 
+void printar_lista(){
+  Serial.print("tamanho da lista: ");
+  Serial.println(posicao_na_lista_de_pacotes_enviados);
+  for (int i=0; i < posicao_na_lista_de_pacotes_enviados; i++){
+    Serial.print("posicao: ");
+    Serial.println(i);
+    Serial.println(lista_de_pacotes_enviados[i].pacote.payload);
+    Serial.println(lista_de_pacotes_enviados[i].esperando_resposta);
+  }
+}
 
 
 
@@ -157,39 +168,80 @@ void setup() {
 
 
 
+
 void loop() {
+  // printar_lista();
+
   // for (int i = 0; i < TAMANHO_DA_LISTA_DE_PACOTES; i++){//rotina pra reenvio de pacotes não respondidos
-  //   // Serial.print("i: ");
-  //   // Serial.print(i);
-  //   // Serial.print(" agora: ");
-  //   // Serial.print(micros());
-  //   // Serial.print(" criacao:" );
-  //   // Serial.println(lista_de_pacotes_enviados[i].hora_do_recebimento);
-  //   if( lista_de_pacotes_enviados[i].esperando_resposta == true && ((micros()-lista_de_pacotes_enviados[i].hora_do_recebimento)> 2000000) ){
-  //     Serial.print("dentro da funcao de write: ");
-  //     Serial.print(i);
-  //     Serial.print(" ");
-  //     Serial.println(lista_de_pacotes_enviados[i].pacote.payload);
-  //     radio.write(&lista_de_pacotes_enviados[i].pacote, sizeof(lista_de_pacotes_enviados[i].pacote));
-  //   }
+    // Serial.print("i: ");
+    // Serial.print(i);
+    // Serial.print(" agora: ");
+    // Serial.print(micros());
+    // Serial.print(" criacao:" );
+    // Serial.println(lista_de_pacotes_enviados[i].hora_do_recebimento);
+    int i=posicao_na_lista_de_pacotes_enviados;
+    if( lista_de_pacotes_enviados[i].esperando_resposta == true && ((micros()-lista_de_pacotes_enviados[i].hora_do_recebimento)> 2000000) ){
+      // Serial.print("dentro da funcao de write: ");
+      // Serial.print(i);
+      // Serial.print(" ");
+      // Serial.println(lista_de_pacotes_enviados[i].pacote.payload);
+      // Serial.print("FOR: pronto para enviar: ");
+      // Serial.println(lista_de_pacotes_enviados[i].pacote.payload);
+      // Serial.print("FOR: id do pacote: ");
+      // Serial.println(lista_de_pacotes_enviados[i].pacote.id_mensagem);
+      radio.write(&lista_de_pacotes_enviados[i].pacote, sizeof(lista_de_pacotes_enviados[i].pacote));
+      // Serial.println("FOR: enviou: ");
+    }
   // }
 
 
   if(Serial.available()){
     String entrada_via_serial = Serial.readString();
+    uint8_t endereco_destino;
+
+    int i=0;
+    #if MINHA_PLACA == 39
+      i=3;
+      char lixo[4];
+      lixo[0] = entrada_via_serial[0];
+      lixo[1] = entrada_via_serial[1];
+      lixo[2] = '\0';
+
+      endereco_destino = atoi(lixo);
+    #endif
 
     char payload[64];
-    int i;
-    for(i=0; i<64; i++){
-      payload[i] = entrada_via_serial[i];
+    for(i; i<64; i++){
+      #if MINHA_PLACA == 39
+        payload[i-3] = entrada_via_serial[i];
+      #endif
+      #if MINHA_PLACA != 39
+        payload[i] = entrada_via_serial[i];
+      #endif
     }
     payload[--i] = '\0';
 
     radio.stopListening();
+
+    #if MINHA_PLACA == 39
+    Pacote pacote = criarPacote(endereco_destino, ENDERECO_ORIGEM, cont_id++, 's', payload, 26);
+    #endif
+
+    #if MINHA_PLACA != 39
     Pacote pacote = criarPacote(ENDERECO_DESTINO_1, ENDERECO_ORIGEM, cont_id++, 's', payload, 26);
+    #endif
+
+    // Serial.print("LOOP: pronto para enviar: ");
+    // Serial.println(pacote.payload);
+    // Serial.print("LOOP: id do pacote: ");
+    // Serial.println(pacote.id_mensagem);
+
     if(!radio.write(&pacote, sizeof(Pacote))){
       Serial.println("pacote nao enviado");
     }
+
+    // Serial.println("LOOP: enviou");
+
     PacoteEnviado pacote_enviado = criarPacoteEnviado(pacote,micros());
     adicionarPacoteNaLista(pacote_enviado);
 
